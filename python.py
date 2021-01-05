@@ -92,19 +92,32 @@ def cargar_datos(file):
     formatedText = []
 
     formatedFile = cargar_lineas(file, 0, len(f.readlines()))
-    print(type(formatedFile))
+    lineasDescartadas = 0
     for linea in formatedFile:
         # linea = linea[0].strip().split(",")
         if es_grupo_y_no_total(linea[0]):
-            lineaFormateada = linea[0].split(".")
+            lineaFormateada = formatear_linea(linea)
+
             formatedText.append(lineaFormateada)
+        else:
+            lineasDescartadas = lineasDescartadas+1
     f.close()
-    return formatedText
+    return formatedText, lineasDescartadas
 
 
-datos = cargar_datos("ine_mortalidad_espanna.csv")
+def formatear_linea(linea):
+    numeros = linea[0].split(".")[0]
+    titulo = linea[0].split(".")[1]
+    numRomano = numeros[9:len(numeros)].split("-")[0]
+    return (numeros,
+            numRomano,
+            romano_a_entero(numRomano),
+            titulo,
+            linea[len(linea)-2],
+            linea[len(linea)-1])
 
-print(len(datos))
-for i in [13000, 34, 1001, 20000, 25000]:
-    # for i in [7, 8, 9, 10]:
+
+datos, num_lin_descartadas = cargar_datos("ine_mortalidad_espanna.csv")
+print(len(datos), num_lin_descartadas)
+for i in [34, 13000, 1001, 20000, 25000]:
     print(datos[i])
