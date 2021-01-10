@@ -119,12 +119,12 @@ def formatear_linea(linea):
             linea[len(linea)-1])
 
 
-# datos, num_lin_descartadas = cargar_datos("ine_mortalidad_espanna.csv")
+datos, num_lin_descartadas = cargar_datos("ine_mortalidad_espanna.csv")
 # print(len(datos), num_lin_descartadas)
 # for i in [13000, 34, 1001, 20000, 25000]:
 #     print(datos[i])
-    # print(type(datos[i]))
-
+#     print(type(datos[i]))
+# print(datos)
 
 # Las funciones anteriores están bien para inspeccionar los datos, pero ahora deseamos almacenar el resultado en un par de tablas
 # para su procesamiento posterior. La primera de ellas será un diccionario con los nombres de los grupos de enfermedades:
@@ -136,32 +136,138 @@ def formatear_linea(linea):
 
 def get_diccionario(file):
     f = open(file, 'r')
-    formatedText = []
+    formatedText = {}
     for linea in f:
         linea = linea.strip().split(";")
         cabecera = linea[0]
-
         if "." in cabecera:
+            # Separamos entre numeros y texto de la cabecera
             numCabecera = cabecera.split(".")[0]
             texto = cabecera.split(".")[1]
             incluyeTodas = bool(re.search("Todas", texto))
+            # Separamos de la parte de los numeros, los numeros romanos
             numRomano = numCabecera.split(" ")
             for valor in numRomano:
+                # Reconocer si es un numero romano
                 esNumeroRomano = bool(re.search("[IXV]", valor))
                 if esNumeroRomano and len(texto) > 0:
+                    # Reconocer si es un conjunto repetido y añadir cada valor
                     if "-" in valor and not incluyeTodas:
                         inicioConjunto = romano_a_entero(valor.split("-")[0])
                         finConjunto = romano_a_entero(valor.split("-")[1])
-                        for i in range(inicioConjunto, finConjunto+1):
-                            numeroDescripcion = [i, texto]
-                            if numeroDescripcion not in formatedText:
-                                formatedText.append(numeroDescripcion)
+                        # for i in range(inicioConjunto, finConjunto+1):
+                        numeroDiccionario = str(
+                            inicioConjunto) + "-" + str(finConjunto)
+                        # numeroDescripcion = {numeroDiccionario: texto}
+                        if numeroDiccionario not in formatedText:
+                            formatedText[numeroDiccionario] = texto
                     else:
-                        numeroDescripcion = [romano_a_entero(valor), texto]
-                        if numeroDescripcion not in formatedText:
-                            formatedText.append(numeroDescripcion)
+                        # De no ser un conjunto añadimos simplemente el valor y la descripcion
+                        numeroDescripcion = romano_a_entero(valor)
+                        if numeroDescripcion > 0 and numeroDescripcion not in formatedText:
+                            formatedText[numeroDescripcion] = texto
     f.close()
     return formatedText
 
+#	(1, “Total”, “Todas”, 2018) : 427721
 
-print(get_diccionario("ine_mortalidad_espanna.csv"))
+
+# print(get_diccionario("ine_mortalidad_espanna.csv"))
+
+
+# def num_muertes(file):
+#     f = open(file, 'r')
+#     for linea in f:
+#         print(linea)
+#         numeroGrupo
+#         clave = ()
+
+def cargar_datos_corregido(file):
+    f = open(file, 'r')
+    formatedText = []
+    lineasDescartadas = 0
+    for linea in f:
+        linea = linea.strip().split(";")
+        incluyeTodas = bool(re.search("Todas", linea[0]))
+        soloUnPunto = bool(re.search("\w\.\w", linea[0]))
+        if soloUnPunto and not incluyeTodas:
+            lineaFormateada = formatear_linea_corregido(linea)
+            formatedText.append(lineaFormateada)
+        else:
+            lineasDescartadas = lineasDescartadas+1
+    f.close()
+    return formatedText, lineasDescartadas
+
+
+def formatear_linea_corregido(linea):
+    tituloConRomanos = linea[0].split(" ", 1)[1].strip()
+    numerosRomanos = tituloConRomanos.split(".")[0].strip()
+    texto = tituloConRomanos.split(".", 1)[1]
+    if "-" in numerosRomanos:
+        primerNumero = romano_a_entero(numerosRomanos.split("-")[0])
+        segundoNumero = romano_a_entero(numerosRomanos.split("-")[1])
+        romanoEntero = (str(primerNumero), str(segundoNumero))
+    else:
+        romanoEntero = romano_a_entero(numerosRomanos)
+    return (tituloConRomanos,
+            numerosRomanos,
+            romanoEntero,
+            texto,
+            linea[len(linea)-2],
+            linea[len(linea)-1])
+
+# ('001-008  I', 'I', 1, 'Enfermedades infecciosas y parasitarias', 1984, 3232)
+
+
+datos, lineasDescartadas = (
+    cargar_datos_corregido("ine_mortalidad_espanna.csv"))
+print(len(datos), lineasDescartadas)
+
+
+def generar_diccionario(datos):
+    diccionario = {}
+    for dato in datos:
+        if dato[2] not in diccionario:
+            diccionario[dato[2]] = dato[3]
+    return diccionario
+
+
+primer_diccionario = generar_diccionario(datos)
+print(primer_diccionario)
+# print(diccionario)
+f = "ine_mortalidad_espanna.csv"
+file = open(f, 'r')
+# print(generar_diccionario(datos).items())
+
+
+def segundo_diccionario(datos):
+    cuartenas = {}
+    diccionario = generar_diccionario(datos)
+    for linea in file:
+        linea = linea.strip().split(";")
+        if "." in linea[0]:
+            cabecera = linea[0].split(" ", 1)[1].strip()
+            titulo = cabecera.split(".")[1]
+
+            for clave, valor in diccionario.items():
+                if valor == titulo:
+                    numDiccionario = clave
+                    sexos = linea[1]
+                    edades = get_edades_formateadas(linea[2])
+                    anio = int(linea[3])
+                    cuartenas[numDiccionario, sexos,
+                              edades, anio] = linea[len(linea)-1]
+    return cuartenas
+
+
+def get_edades_formateadas(edades):
+    numeros = [int(s) for s in edades.split() if s.isdigit()]
+    if len(numeros) > 0:
+        return tuple(numeros)
+    else:
+        return "Todas"
+
+
+elmejordic = segundo_diccionario(datos)
+print("AQUI MANDO YO", elmejordic[(('6', '8'), 'Mujeres', (45, 49), 2010):])
+# print(elmejordic)
