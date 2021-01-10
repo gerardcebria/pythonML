@@ -39,28 +39,32 @@ def cargar_lineas(file, inicio, fin):
 #     print(dato)
 
 
-def romano_a_entero(r):
+def romano_a_entero(valor):
     roman = {'I': 1, 'V': 5, 'X': 10, 'L': 50, 'C': 100, 'D': 500, 'M': 1000}
-    if len(r) > 1:
+    if len(valor) > 1:
         num = 0
         i = 0
-        for letra in r:
-            i = i+1
-            if i < len(r):
-                if roman[letra] < roman[r[i]]:
-                    num = num + (roman[letra] * -1)
+        try:
+            for letra in valor:
+                i = i+1
+                if i < len(valor):
+                    if roman[letra] < roman[valor[i]]:
+                        num = num + (roman[letra] * -1)
+                    else:
+                        num = num + roman[letra]
                 else:
                     num = num + roman[letra]
-            else:
-                num = num + roman[letra]
-        return num
+            return num
+        except:
+            return num
     else:
-        return roman[r]
+        return roman[valor]
+
 
 # print(romano_a_entero('MCDXCII'))
 
-# print([(r, romano_a_entero(r)) \
- #     for r in ["I", "IV", "XIV", "XXXIX", "VL", "LXIV", "MCDXCII"]])
+# print([(r, romano_a_entero(r))
+#        for r in ["I", "IV", "XIV", "XXXIX-IX", "VL", "LXIV", "MCDXCII"]])
 
 
 # Apartado B
@@ -94,10 +98,8 @@ def cargar_datos(file):
     formatedFile = cargar_lineas(file, 0, len(f.readlines()))
     lineasDescartadas = 0
     for linea in formatedFile:
-        # linea = linea[0].strip().split(",")
         if es_grupo_y_no_total(linea[0]):
             lineaFormateada = formatear_linea(linea)
-
             formatedText.append(lineaFormateada)
         else:
             lineasDescartadas = lineasDescartadas+1
@@ -117,7 +119,49 @@ def formatear_linea(linea):
             linea[len(linea)-1])
 
 
-datos, num_lin_descartadas = cargar_datos("ine_mortalidad_espanna.csv")
-print(len(datos), num_lin_descartadas)
-for i in [34, 13000, 1001, 20000, 25000]:
-    print(datos[i])
+# datos, num_lin_descartadas = cargar_datos("ine_mortalidad_espanna.csv")
+# print(len(datos), num_lin_descartadas)
+# for i in [13000, 34, 1001, 20000, 25000]:
+#     print(datos[i])
+    # print(type(datos[i]))
+
+
+# Las funciones anteriores están bien para inspeccionar los datos, pero ahora deseamos almacenar el resultado en un par de tablas
+# para su procesamiento posterior. La primera de ellas será un diccionario con los nombres de los grupos de enfermedades:
+# 1 : 	Enfermedades infecciosas y parasitarias
+# 2 :	Tumores
+# 3 : 	Enfermedades de la sangre y de los órganos hematopoyéticos, y ciertos trastornos que afectan al mecanismo de la inmunidad
+# 	…:  Etcétera.
+
+
+def get_diccionario(file):
+    f = open(file, 'r')
+    formatedText = []
+    for linea in f:
+        linea = linea.strip().split(";")
+        cabecera = linea[0]
+
+        if "." in cabecera:
+            numCabecera = cabecera.split(".")[0]
+            texto = cabecera.split(".")[1]
+            incluyeTodas = bool(re.search("Todas", texto))
+            numRomano = numCabecera.split(" ")
+            for valor in numRomano:
+                esNumeroRomano = bool(re.search("[IXV]", valor))
+                if esNumeroRomano and len(texto) > 0:
+                    if "-" in valor and not incluyeTodas:
+                        inicioConjunto = romano_a_entero(valor.split("-")[0])
+                        finConjunto = romano_a_entero(valor.split("-")[1])
+                        for i in range(inicioConjunto, finConjunto+1):
+                            numeroDescripcion = [i, texto]
+                            if numeroDescripcion not in formatedText:
+                                formatedText.append(numeroDescripcion)
+                    else:
+                        numeroDescripcion = [romano_a_entero(valor), texto]
+                        if numeroDescripcion not in formatedText:
+                            formatedText.append(numeroDescripcion)
+    f.close()
+    return formatedText
+
+
+print(get_diccionario("ine_mortalidad_espanna.csv"))
